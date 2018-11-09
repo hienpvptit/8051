@@ -1,0 +1,284 @@
+A51 MACRO ASSEMBLER  MAIN                                                                 11/09/2018 17:52:35 PAGE     1
+
+
+MACRO ASSEMBLER A51 V8.02
+OBJECT MODULE PLACED IN main.OBJ
+ASSEMBLER INVOKED BY: C:\Keil_v4\C51\BIN\A51.EXE main.asm SET(SMALL) DEBUG EP
+
+LOC  OBJ            LINE     SOURCE
+
+  00B0                 1     RS BIT P3.0
+  00B1                 2     EN BIT P3.1
+                       3     
+  0030                 4     TMP_COUNT EQU 30H
+  0031                 5     COUNT EQU 31H
+  0032                 6     TMP_TH1 EQU 32H
+  0033                 7     TMP_TL1 EQU 33H
+                       8     
+  0034                 9     COUNT_ET0 EQU 34H
+                      10     
+  0035                11     SUBB1_H EQU 35H
+  0036                12     SUBB1_L EQU 36H
+  0037                13     SUBB2_H EQU 37H
+  0038                14     SUBB2_L EQU 38H
+  0039                15     SUBB_RS_H EQU 39H
+  003A                16     SUBB_RS_L EQU 3AH
+                      17     
+  003B                18     DIV_RS EQU 3BH
+  003C                19     DIV_RM EQU 3CH
+                      20     
+0000                  21     ORG 00H
+0000 020030           22     LJMP MAIN
+                      23     
+000B                  24     ORG 0BH
+000B 02010B           25     LJMP ISR_ET0
+                      26     
+001B                  27     ORG 1BH
+001B 020126           28     LJMP ISR_ET1
+                      29     
+                      30     
+0030                  31     ORG 30H
+0030                  32     MAIN:
+                      33                     ; LCD INIT
+0030 7438             34             MOV A, #38H                     ; LCD1602
+0032 11AE             35             CALL LCD_WR_CMD
+0034 740C             36             MOV A, #0CH                     ; TURN ON LCD
+0036 11AE             37             CALL LCD_WR_CMD
+0038 7401             38             MOV A, #1H                      ; CLEAR LCD
+003A 11AE             39             CALL LCD_WR_CMD
+                      40     
+                      41             ; Timer
+003C 758951           42             MOV TMOD, #51H          ; Timer 0, Mode 1;  Timer 1, mode 1 C/T=1
+003F 758BB2           43             MOV TL1, #0B2H          ; Count 334 pulse
+0042 758DFE           44             MOV TH1, #0FEH
+0045 D2AB             45             SETB ET1
+0047 753000           46             MOV TMP_COUNT, #0
+004A 753100           47             MOV COUNT, #0
+                      48             
+                      49             
+004D 758AF0           50             MOV TL0, #0F0H          ; 10 ms
+0050 758CD8           51             MOV TH0, #0D8H
+0053 D2A9             52             SETB ET0
+0055 753463           53             MOV COUNT_ET0, #99      ; 10 ms x 100 = 1s
+                      54             
+0058 D2AF             55             SETB EA                         ; Enable interrupt
+                      56     
+005A D28C             57             SETB TR0
+005C D28E             58             SETB TR1
+A51 MACRO ASSEMBLER  MAIN                                                                 11/09/2018 17:52:35 PAGE     2
+
+                      59     
+                      60     
+005E                  61     MAIN_LOOP:
+                      62              
+005E 1166             63             CALL SHOW
+0060 7FC8             64             MOV R7, #200
+0062 11C8             65             CALL DELAY
+                      66     
+0064 80F8             67             JMP MAIN_LOOP
+                      68     
+0066                  69     SHOW:
+0066 7401             70             MOV A, #1H              ; CLEAR LCD
+0068 11AE             71             CALL LCD_WR_CMD
+                      72             
+006A E531             73             MOV A, COUNT
+006C 75F03C           74             MOV B, #60
+006F A4               75             MUL AB                  ; RPM value. A - 8 LOW bit; B - 8 HIGH BIT
+                      76     
+0070 FD               77             MOV R5, A
+0071 ACF0             78             MOV R4, B
+                      79             ; thousands
+0073 8C35             80             MOV SUBB1_H, R4
+0075 8D36             81             MOV SUBB1_L, R5
+0077 753703           82             MOV SUBB2_H, #3H         ; 1000
+007A 7538E8           83             MOV SUBB2_L, #0E8H
+007D 11E3             84             CALL DIV16                       ; Get thousands of RPM
+007F E53B             85             MOV A, DIV_RS
+0081 2430             86             ADD A, #48
+0083 11BB             87             CALL LCD_WR_DATA
+                      88     
+                      89             ; hundred
+0085 8C35             90             MOV SUBB1_H, R4
+0087 8D36             91             MOV SUBB1_L, R5
+0089 753700           92             MOV SUBB2_H, #0H         ; 100
+008C 753864           93             MOV SUBB2_L, #100
+008F 11E3             94             CALL DIV16
+0091 E53B             95             MOV A, DIV_RS
+0093 75F00A           96             MOV B, #10
+0096 84               97             DIV AB
+0097 E5F0             98             MOV A, B
+0099 2430             99             ADD A, #48
+009B 11BB            100             CALL LCD_WR_DATA
+                     101     
+                     102             ; Dozens
+009D E53C            103             MOV A, DIV_RM
+009F 75F00A          104             MOV B, #10
+00A2 84              105             DIV AB
+00A3 2430            106             ADD A, #48
+00A5 11BB            107             CALL LCD_WR_DATA
+                     108     
+                     109             ; per
+00A7 E5F0            110             MOV A, B
+00A9 2430            111             ADD A, #48
+00AB 11BB            112             CALL LCD_WR_DATA
+                     113             
+00AD 22              114             RET
+                     115     
+00AE                 116     LCD_WR_CMD:
+00AE F5A0            117             MOV P2, A
+00B0 C2B0            118             CLR RS
+00B2 C2B1            119             CLR EN
+00B4 D2B1            120             SETB EN
+00B6 7F0A            121             MOV R7, #10 ; DELAY 
+00B8 11C8            122             CALL DELAY
+00BA 22              123             RET
+                     124     
+A51 MACRO ASSEMBLER  MAIN                                                                 11/09/2018 17:52:35 PAGE     3
+
+00BB                 125     LCD_WR_DATA:
+00BB F5A0            126             MOV P2, A
+00BD D2B0            127             SETB RS
+00BF C2B1            128             CLR EN
+00C1 D2B1            129             SETB EN
+00C3 7F01            130             MOV R7, #1 ; DELAY 
+00C5 11C8            131             CALL DELAY
+00C7 22              132             RET
+                     133     
+00C8                 134     DELAY:
+                     135             ; R7 - time     x 0.5 ms
+00C8                 136     DELAY_LOOP1:
+00C8 7EFA            137             MOV R6, #250
+00CA                 138     DELAY_LOOP2:
+00CA DEFE            139             DJNZ R6, DELAY_LOOP2
+00CC DFFA            140             DJNZ R7, DELAY_LOOP1
+00CE 22              141             RET
+                     142     
+                     143     ;-----------------
+00CF                 144     SUBB16:
+                     145             ; S1:  SUBB1_H SUBB1_L
+                     146             ; S2:  SUBB2_H SUBB2_L
+                     147             ; RS:  SUBB_RS_H SUBB_RS_L
+00CF C3              148             CLR C
+00D0 E536            149             MOV A, SUBB1_L
+00D2 8538F0          150             MOV B, SUBB2_L                                                                     
+                                                                                                                        
+                                                                                 
+00D5 95F0            151             SUBB A, B
+00D7 F53A            152             MOV SUBB_RS_L, A        ; RS - 8LB
+                     153             
+00D9 E535            154             MOV A, SUBB1_H
+00DB 8537F0          155             MOV B, SUBB2_H
+00DE 95F0            156             SUBB A, B
+00E0 F539            157             MOV SUBB_RS_H, A        ; RS - 8HB
+00E2 22              158             RET
+                     159     
+00E3                 160     DIV16:
+00E3 753900          161             MOV SUBB_RS_H, #0       ;       RS - 8HB
+00E6 753A00          162             MOV SUBB_RS_L, #0       ;       RS - 8LB
+00E9 753B00          163             MOV DIV_RS, #0          ;       
+00EC 753C00          164             MOV DIV_RM, #0          ;       
+00EF                 165     DIV16_LOOP:
+00EF 11CF            166             CALL SUBB16
+00F1 4017            167             JC END_DIV16
+00F3 053B            168             INC DIV_RS                      ; 
+                     169             
+00F5 A939            170             MOV R1, SUBB_RS_H
+00F7 AA3A            171             MOV R2, SUBB_RS_L
+                     172             
+00F9 8935            173             MOV SUBB1_H, R1
+00FB 8A36            174             MOV SUBB1_L, R2 
+                     175     
+00FD B900EF          176             CJNE R1, #0, DIV16_LOOP
+0100 EA              177             MOV A, R2
+0101 8538F0          178             MOV B, SUBB2_L
+0104 95F0            179             SUBB A, B
+0106 50E7            180             JNC DIV16_LOOP
+0108 8A3C            181             MOV     DIV_RM, R2      
+010A                 182     END_DIV16:
+010A 22              183             RET
+                     184     
+                     185     ;-----------------
+010B                 186     ISR_ET0:
+010B 758AF0          187             MOV TL0, #0F0H          ; count 1s
+010E 758CD8          188             MOV TH0, #0D8H
+A51 MACRO ASSEMBLER  MAIN                                                                 11/09/2018 17:52:35 PAGE     4
+
+0111 C28D            189             CLR TF0
+0113 D5340F          190             DJNZ COUNT_ET0, END_ISR_ET0
+0116 753463          191             MOV COUNT_ET0, #99
+0119 853031          192             MOV COUNT, TMP_COUNT
+011C 753000          193             MOV TMP_COUNT, #0
+011F 858D32          194             MOV TMP_TH1, TH1
+0122 858B33          195             MOV TMP_TL1, TL1
+0125                 196     END_ISR_ET0:
+0125 32              197             RETI
+                     198     
+                     199     ;-----------------
+0126                 200     ISR_ET1:
+0126 758BB2          201             MOV TL1, #0B2H          ; Count 334 pulse
+0129 758DFE          202             MOV TH1, #0FEH
+012C 0530            203             INC TMP_COUNT
+012E C28F            204             CLR TF1
+0130                 205     END_ISR_ET1:
+0130 32              206             RETI
+                     207     END
+A51 MACRO ASSEMBLER  MAIN                                                                 11/09/2018 17:52:35 PAGE     5
+
+SYMBOL TABLE LISTING
+------ ----- -------
+
+
+N A M E             T Y P E  V A L U E   ATTRIBUTES
+
+B. . . . . . . . .  D ADDR   00F0H   A   
+COUNT. . . . . . .  N NUMB   0031H   A   
+COUNT_ET0. . . . .  N NUMB   0034H   A   
+DELAY. . . . . . .  C ADDR   00C8H   A   
+DELAY_LOOP1. . . .  C ADDR   00C8H   A   
+DELAY_LOOP2. . . .  C ADDR   00CAH   A   
+DIV16. . . . . . .  C ADDR   00E3H   A   
+DIV16_LOOP . . . .  C ADDR   00EFH   A   
+DIV_RM . . . . . .  N NUMB   003CH   A   
+DIV_RS . . . . . .  N NUMB   003BH   A   
+EA . . . . . . . .  B ADDR   00A8H.7 A   
+EN . . . . . . . .  B ADDR   00B0H.1 A   
+END_DIV16. . . . .  C ADDR   010AH   A   
+END_ISR_ET0. . . .  C ADDR   0125H   A   
+END_ISR_ET1. . . .  C ADDR   0130H   A   
+ET0. . . . . . . .  B ADDR   00A8H.1 A   
+ET1. . . . . . . .  B ADDR   00A8H.3 A   
+ISR_ET0. . . . . .  C ADDR   010BH   A   
+ISR_ET1. . . . . .  C ADDR   0126H   A   
+LCD_WR_CMD . . . .  C ADDR   00AEH   A   
+LCD_WR_DATA. . . .  C ADDR   00BBH   A   
+MAIN . . . . . . .  C ADDR   0030H   A   
+MAIN_LOOP. . . . .  C ADDR   005EH   A   
+P2 . . . . . . . .  D ADDR   00A0H   A   
+P3 . . . . . . . .  D ADDR   00B0H   A   
+RS . . . . . . . .  B ADDR   00B0H.0 A   
+SHOW . . . . . . .  C ADDR   0066H   A   
+SUBB16 . . . . . .  C ADDR   00CFH   A   
+SUBB1_H. . . . . .  N NUMB   0035H   A   
+SUBB1_L. . . . . .  N NUMB   0036H   A   
+SUBB2_H. . . . . .  N NUMB   0037H   A   
+SUBB2_L. . . . . .  N NUMB   0038H   A   
+SUBB_RS_H. . . . .  N NUMB   0039H   A   
+SUBB_RS_L. . . . .  N NUMB   003AH   A   
+TF0. . . . . . . .  B ADDR   0088H.5 A   
+TF1. . . . . . . .  B ADDR   0088H.7 A   
+TH0. . . . . . . .  D ADDR   008CH   A   
+TH1. . . . . . . .  D ADDR   008DH   A   
+TL0. . . . . . . .  D ADDR   008AH   A   
+TL1. . . . . . . .  D ADDR   008BH   A   
+TMOD . . . . . . .  D ADDR   0089H   A   
+TMP_COUNT. . . . .  N NUMB   0030H   A   
+TMP_TH1. . . . . .  N NUMB   0032H   A   
+TMP_TL1. . . . . .  N NUMB   0033H   A   
+TR0. . . . . . . .  B ADDR   0088H.4 A   
+TR1. . . . . . . .  B ADDR   0088H.6 A   
+
+
+REGISTER BANK(S) USED: 0 
+
+
+ASSEMBLY COMPLETE.  0 WARNING(S), 0 ERROR(S)
